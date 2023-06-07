@@ -1,0 +1,166 @@
+---
+title: "PEEG lmer"
+author: "BL"
+date: '2023-05-16'
+output: html_document
+---
+
+```{r}
+library(dplyr)
+library(tidyverse)
+library(rstatix)
+library(afex)
+library(apa)
+```
+
+
+```{r setup, include=FALSE}
+home <- 'C:/Users/lloydb/surfdrive/ExperimentData/PEEG_TVNS/'
+myFile <- paste(home,'processed_data/other_data/all_subjs_extra_information_PEEG.csv',sep = "")
+allData <- data.frame(read.csv(myFile, header = TRUE))
+allData[allData == 'NaN'] <- NA
+```
+
+
+```{r}
+# make long dataframe 
+cut_df <- select(allData, sub, Order, block1_BL, block2_BL, block3_BL, block4_BL)
+
+# Transform the data
+long_df <- cut_df %>%
+  pivot_longer(
+    cols = starts_with("block"),
+    names_to = "block",
+    values_to = "BL_pupil_size"
+  )
+
+long_df <- long_df %>%
+  mutate(fin_block = case_when(
+    block == 'block1_BL' ~1,
+    block == 'block2_BL' ~2,
+    block == 'block3_BL' ~3,
+    block == 'block4_BL' ~4
+))
+
+```
+
+```{r}
+
+
+```
+
+
+
+```{r}
+
+long_df$condition <- 'stim'
+
+#sham_yes <- ifelse(long_df$Order == 0, unique(long_df$sub[long_df$Order == 1]))
+stim_first = unique(long_df$sub[long_df$Order == 1])
+sham_first = unique(long_df$sub[long_df$Order == 0])
+# assign sham blocks
+# just number 8!! - block is sham, stim, stim, sham (kep order the same)
+long_df <- long_df %>%
+  mutate(condition = ifelse(sub %in% sham_first & fin_block %in% c(1, 3), 'sham', 'stim'),
+         condition = ifelse(sub %in% stim_first & fin_block %in% c(2, 4), 'sham', condition),
+         condition = ifelse(sub == 8 & fin_block == 3, 'stim', condition),
+         condition = ifelse(sub == 8 & fin_block == 4, 'sham', condition))
+
+long_df <- long_df %>%
+  mutate(sess_half = case_when(
+    fin_block == 1 ~ 1,
+    fin_block == 2 ~ 1,
+    fin_block == 3 ~ 2,
+    fin_block == 4 ~ 2,
+))
+
+
+long_df$sess_half <- as.factor(long_df$sess_half)
+long_df$Order <- as.factor(long_df$Order)
+long_df$condition <- as.factor(long_df$condition)
+long_df$fin_block <- as.factor(long_df$fin_block)
+long_df$BL_pupil_size <- as.numeric(long_df$BL_pupil_size)
+```
+
+
+Run lmer models pupil baseline ~ condition * block * order 
+
+```{r}
+# Example ANOVA with three independent variables
+model = aov_ez(data = long_df, dv = BL_pupil_size, within = c(sess_half, condition), between=Order, detailed = TRUE)
+summary(model)
+
+# instead of 1,2,3,4: change it to 1(sham) 1(tvns), 2(tvns), 2(sham). 
+mod <- long_df %>%
+  anova_test(BL_pupil_size ~ condition * sess_half * Order)
+summary(mod)
+```
+
+Ad-hoc power calculation based on Sharon 
+
+```{r}
+# Load the pwr package
+library(pwr)
+
+
+# Information based on Sharon et al
+# Means and standard deviations for condition 1 (tVNS) and condition 2 (sham)
+
+## PUPIL size 
+mean_1 <- 4.05
+sem_1 <- 0.92
+mean_2 <- 1.67
+sem_2 <- 0.63
+
+# Calculate SD from SEM
+n_1 <- 24  # Sample size for Pupil from Sharon et al
+n_2 <- 24  # Sample size for Pupil from Sharon et al
+sd_1 <- sem_1 * sqrt(n_1)
+sd_2 <- sem_2 * sqrt(n_2)
+
+# Parameters for power calculation
+effect_size <- (mean_1 - mean_2) / sqrt((sd_1^2 + sd_2^2) / 2)
+print(paste('effect size for pupil = ', round(effect_size, 2)))
+#define power
+power <- 0.8
+
+# Perform power calculation for paired t-test
+sample_size <- pwr.t.test(d = effect_size , sig.level = 0.05, power = power,
+                          type = "paired")$n
+
+# Print the required sample size
+print(paste('pupil sample size should be:', round(sample_size,2)))
+
+# EEG 
+mean_1 <-  94.35
+sem_1 <- 2.2
+mean_2 <- 103.55
+sem_2 <- 2.4
+
+# Calculate SD from SEM
+n_1 <- 21   # Sample size for EEG from Sharon et al
+n_2 <- 21   # Sample size for EEG from Sharon et al
+sd_1 <- sem_1 * sqrt(n_1)
+sd_2 <- sem_2 * sqrt(n_2)
+
+# Parameters for power calculation
+effect_size <- (mean_1 - mean_2) / sqrt((sd_1^2 + sd_2^2) / 2)
+print(paste('effect size for EEG = ', round(effect_size, 2)))
+power <- 0.8
+
+# Perform power calculation for paired t-test
+sample_size <- pwr.t.test(d = effect_size, sig.level = 0.05, power = power,
+                          type = "paired")$n
+
+# Print the required sample size
+print(paste('eeg sample size should be:', round(sample_size,2)))
+
+
+```
+
+
+
+
+
+
+
