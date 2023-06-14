@@ -7,8 +7,6 @@ Processes the pupil data based on criteria outlined in script (can be easily cha
 
 The study consists of two separate analysis pipelines. This is the pipeline for the Pupil analysis. The pipeline for the EEG analysis is found elsewhere (@fwurm).
 
-Raw data available: https://figshare.com/projects/Short-term_transcutaneous_vagus_nerve_stimulation_increases_pupil_size_but_does_not_affect_EEG_alpha_power_a_replication/169890
-
 For any questions, please contact: b.lloyd@fsw.leidenuniv.nl
 
 
